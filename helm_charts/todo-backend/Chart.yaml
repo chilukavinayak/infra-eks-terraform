@@ -1,0 +1,38 @@
+apiVersion: v2
+name: tresvita-todo-backend
+description: Tresvita Todo Application Backend - Managed by Wissen Team
+
+# A chart can be either an 'application' or a 'library' chart.
+type: application
+
+# This is the chart version.
+version: 1.0.0
+
+# This is the version number of the application being deployed.
+appVersion: "1.0.0"
+
+# Maintainers
+maintainers:
+  - name: Wissen Team
+    email: wissen-team@tresvita.com
+
+# Keywords
+keywords:
+  - tresvita
+  - todo
+  - spring-boot
+  - java
+  - backend
+
+# Sources
+sources:
+  - https://github.com/chilukavinayak/todo-backend-eks
+
+# Home
+home: https://github.com/chilukavinayak/infra-eks-terraform
+
+# Annotations
+annotations:
+  category: Application
+  managedBy: wissen-team
+  project: tresvita-todo-app
