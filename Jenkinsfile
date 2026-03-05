@@ -39,7 +39,6 @@ pipeline {
         stage('Terraform Init') {
             steps {
                 sh '''
-                    cd infra-eks-terraform
                     terraform init -backend-config="bucket=tresvita-terraform-state-${AWS_ACCOUNT_ID}" -backend-config="key=eks/${ENVIRONMENT}/terraform.tfstate" -backend-config="region=${AWS_REGION}" -backend-config="dynamodb_table=tresvita-terraform-locks-${ENVIRONMENT}"
                 '''
             }
@@ -48,7 +47,6 @@ pipeline {
         stage('Select Workspace') {
             steps {
                 sh '''
-                    cd infra-eks-terraform
                     terraform workspace select ${ENVIRONMENT} || terraform workspace new ${ENVIRONMENT}
                 '''
             }
@@ -60,7 +58,6 @@ pipeline {
             }
             steps {
                 sh '''
-                    cd infra-eks-terraform
                     terraform plan -var-file="environments/${ENVIRONMENT}.tfvars" -out=tfplan -input=false
                     terraform show tfplan
                 '''
@@ -82,7 +79,6 @@ pipeline {
             }
             steps {
                 sh '''
-                    cd infra-eks-terraform
                     terraform apply tfplan
                 '''
             }
@@ -97,7 +93,6 @@ pipeline {
                     input message: "DESTROY all infrastructure in ${params.ENVIRONMENT}?", ok: 'Destroy'
                 }
                 sh '''
-                    cd infra-eks-terraform
                     terraform destroy -var-file="environments/${ENVIRONMENT}.tfvars" -auto-approve -input=false
                 '''
             }
