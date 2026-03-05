@@ -1,0 +1,62 @@
+# ============================================
+# Tresvita Todo Frontend - Development Values
+# Managed by Wissen Team
+# ============================================
+
+# Development environment configuration
+replicaCount: 2
+
+image:
+  repository: tresvita-todo-frontend
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+fullnameOverride: "tresvita-todo-frontend"
+
+serviceAccount:
+  create: true
+  name: "frontend-sa"
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "80"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/tags: "Environment=dev,Project=tresvita-todo-app,ManagedBy=wissen-team"
+  hosts:
+    - host: app-dev.tresvita.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Development environment variables
+env:
+  - name: REACT_APP_API_URL
+    value: "http://api-dev.tresvita.local/api"
+  - name: NODE_ENV
+    value: "development"
+  - name: REACT_APP_APP_NAME
+    value: "Tresvita Todo (Dev)"
+  - name: REACT_APP_VERSION
+    value: "1.0.0-dev"

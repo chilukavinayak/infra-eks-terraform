@@ -311,9 +311,18 @@ sudo systemctl restart jenkins
    - ID: `kubeconfig`
    - Description: Kubernetes Config
 
-### Step 8: Configure GitHub Webhooks
+### Step 8: Configure GitHub Webhooks (CRITICAL FOR AUTO-TRIGGER)
 
-#### In Jenkins:
+⚠️ **If Jenkins is not triggering on merge to master, check these configurations:**
+
+#### Prerequisites
+
+Ensure these plugins are installed:
+- GitHub Integration
+- GitHub Branch Source
+- Pipeline: GitHub Groovy Libraries
+
+#### In Jenkins (Global Configuration):
 
 1. Navigate to: **Manage Jenkins** → **Configure System**
 
@@ -321,19 +330,84 @@ sudo systemctl restart jenkins
    - Check "Manage hooks"
    - Credentials: Select `github-token`
    - Click "Test Connection"
+   \n3. **For GitHub Enterprise (if applicable):**
+   - Add GitHub Enterprise Servers section
+   - API endpoint: `https://github.com/api/v3`
+   - Credentials: Select `github-token`
 
 #### In GitHub (for each repository):
 
-1. Go to repository → Settings → Webhooks → Add webhook
+1. Go to repository → **Settings** → **Webhooks** → **Add webhook**
 
 2. Configure webhook:
-   - Payload URL: `http://<jenkins-public-ip>:8080/github-webhook/`
-   - Content type: `application/json`
-   - Secret: (leave blank)
-   - Events: Select "Just the push event"
-   - Active: ✓
+   | Setting | Value |
+   |---------|-------|
+   | Payload URL | `http://<jenkins-public-ip>:8080/github-webhook/` |
+   | Content type | `application/json` |
+   | Secret | (leave blank unless using signature verification) |
+   | Events | Select **"Just the push event"** |
+   | Active | ✓ |
 
-3. Click "Add webhook"
+3. Click **"Add webhook"**
+
+4. **Verify webhook is working:**
+   - After adding, GitHub will show a green checkmark ✅ if the webhook is reachable
+   - Red cross ❌ indicates connection issues (check security group rules)
+
+#### In Jenkins (Job Configuration):
+
+For each pipeline job, ensure:
+
+1. **Build Triggers** section:
+   - ☑️ Check **"GitHub hook trigger for GITScm polling"**
+   
+2. **Pipeline** section:
+   - Definition: Pipeline script from SCM
+   - SCM: Git
+   - Repository URL must match exactly (use HTTPS or SSH consistently)
+
+#### Jenkinsfile Trigger Directive
+
+Ensure your Jenkinsfile includes the trigger directive:
+
+```groovy
+pipeline {
+    agent any
+    
+    triggers {
+        // This enables automatic trigger on GitHub push
+        githubPush()
+    }
+    
+    // ... rest of pipeline
+}
+```
+
+#### Testing Webhook Trigger
+
+1. **Test webhook delivery in GitHub:**
+   - Go to repository → Settings → Webhooks
+   - Click on your webhook
+   - Click "Recent Deliveries"
+   - Click "Redeliver" to test
+
+2. **Check Jenkins logs:**
+   ```bash
+   # SSH to Jenkins server
+   sudo tail -f /var/log/jenkins/jenkins.log
+   
+   # Or check GitHub webhook logs in Jenkins UI
+   # Manage Jenkins → System Log → GitHub WebHook
+   ```
+
+3. **Trigger manually for testing:**
+   ```bash
+   # From your local machine with GitHub access
+   curl -X POST \
+     -H "Content-Type: application/json" \
+     -d '{"ref":"refs/heads/main"}' \
+     http://<jenkins-public-ip>:8080/github-webhook/
+   ```
 
 ### Step 9: Create Pipeline Jobs
 
@@ -777,6 +851,151 @@ kubectl get namespaces
 # Check Helm releases
 helm list --all-namespaces
 ```
+
+### Jenkins Not Triggering on Merge to Master (Webhook Issues)
+
+#### Symptom: Pipeline doesn't start when code is pushed/merged
+
+#### Check 1: Verify Webhook Configuration
+```bash
+# On Jenkins server, check if webhook endpoint is accessible
+curl -v http://localhost:8080/github-webhook/
+
+# Should return HTTP 200 with "OK" or similar
+```
+
+#### Check 2: Security Group Rules
+Ensure Jenkins security group allows inbound traffic:
+
+| Issue | Solution |
+|-------|----------|
+| GitHub can't reach Jenkins | Add inbound rule: HTTP (80) or 8080 from GitHub IPs |
+| GitHub IP ranges | See https://api.github.com/meta for current IPs |
+
+**Quick fix (for testing only):**
+```bash
+# Allow all HTTP traffic (NOT for production)
+aws ec2 authorize-security-group-ingress \
+  --group-id <jenkins-sg-id> \
+  --protocol tcp \
+  --port 8080 \
+  --cidr 0.0.0.0/0
+```
+
+#### Check 3: Jenkins Job Configuration
+
+1. **Verify "GitHub hook trigger for GITScm polling" is checked**
+   - Job → Configure → Build Triggers
+
+2. **Verify SCM configuration**
+   - Repository URL must be accessible
+   - Credentials must be valid
+
+3. **Check branch specifier**
+   - Should include `main` or `master`: `*/main`
+
+#### Check 4: Jenkinsfile Trigger Directive
+
+Ensure Jenkinsfile has trigger block:
+
+```groovy
+pipeline {
+    agent any
+    
+    triggers {
+        githubPush()  // This is REQUIRED for auto-trigger
+    }
+    
+    // ... rest of pipeline
+}
+```
+
+#### Check 5: GitHub Webhook Delivery Status
+
+1. Go to GitHub → Repository → Settings → Webhooks
+2. Click on your webhook
+3. Check "Recent Deliveries"
+   - Green check ✅ = Delivered successfully
+   - Red cross ❌ = Delivery failed
+
+**Common delivery failures:**
+| Status | Cause | Solution |
+|--------|-------|----------|
+| 403 Forbidden | CSRF protection | Disable CSRF or whitelist GitHub IPs |
+| 404 Not Found | Wrong URL | Check `/github-webhook/` endpoint |
+| Timeout | Network issue | Check security groups, Jenkins running |
+| 200 but no build | Trigger not enabled | Check "GitHub hook trigger" in job config |
+
+#### Check 6: Jenkins CSRF Settings
+
+If getting 403 errors:
+
+1. Manage Jenkins → Configure Global Security
+2. Under **CSRF Protection**:
+   - Option 1: Disable (not recommended for production)
+   - Option 2: Enable proxy compatibility
+3. Restart Jenkins
+
+#### Check 7: Jenkins Logs
+
+```bash
+# Check Jenkins logs for webhook events
+sudo tail -f /var/log/jenkins/jenkins.log | grep -i github
+
+# Or check specific webhook plugin logs
+sudo tail -f /var/log/jenkins/jenkins.log | grep -i webhook
+```
+
+#### Check 8: Alternative Trigger (Polling)
+
+If webhooks can't be configured, use SCM polling:
+
+```groovy
+pipeline {
+    agent any
+    
+    triggers {
+        // Poll GitHub every 5 minutes
+        pollSCM('H/5 * * * *')
+    }
+    
+    // ... rest of pipeline
+}
+```
+
+⚠️ **Note:** Polling is less efficient than webhooks but works without external access.
+
+#### Manual Workaround (Immediate)
+
+If webhooks aren't working and you need to deploy:
+
+```bash
+# Trigger Jenkins build manually via API
+curl -X POST \
+  --user username:api_token \
+  "http://<jenkins-ip>:8080/job/tresvita-todo-frontend/build"
+
+# Or use Jenkins CLI
+java -jar jenkins-cli.jar -s http://<jenkins-ip>:8080/ \
+  build tresvita-todo-frontend
+```
+
+---
+
+## 📋 Jenkins Webhook Checklist
+
+Use this checklist when webhook triggers aren't working:
+
+- [ ] Jenkins URL accessible from internet (or GitHub IPs allowed)
+- [ ] Security group allows inbound on port 8080
+- [ ] GitHub webhook configured with correct URL
+- [ ] GitHub webhook shows green checkmark (delivery successful)
+- [ ] Jenkins job has "GitHub hook trigger for GITScm polling" checked
+- [ ] Jenkinsfile includes `triggers { githubPush() }` block
+- [ ] Repository URL in job config matches webhook repository
+- [ ] Branch specifier includes the branch being pushed to
+- [ ] CSRF protection not blocking webhook (check logs for 403)
+- [ ] Jenkins GitHub plugin installed and configured
 
 ---
 

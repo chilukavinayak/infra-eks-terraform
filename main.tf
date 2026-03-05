@@ -314,6 +314,88 @@ resource "aws_iam_role_policy" "jenkins" {
 }
 
 # --------------------------------------------
+# Security Group for Management Access
+# This security group allows access from your IP address
+# --------------------------------------------
+
+locals {
+  # Combine all allowed CIDRs
+  management_cidrs = distinct(compact(concat(
+    var.allowed_management_cidrs,
+    var.my_ip_address != "" ? [var.my_ip_address] : []
+  )))
+}
+
+# Security group for cluster management access
+resource "aws_security_group" "management" {
+  count = length(local.management_cidrs) > 0 ? 1 : 0
+
+  name_prefix = "${local.cluster_name}-management-"
+  description = "Security group for management access from whitelisted IPs"
+  vpc_id      = module.vpc.vpc_id
+
+  # Allow HTTPS access for kubectl
+  ingress {
+    description = "Kubernetes API access"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = local.management_cidrs
+  }
+
+  # Allow HTTP access (for ALB/ingress testing)
+  ingress {
+    description = "HTTP access"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = local.management_cidrs
+  }
+
+  # Allow SSH access if needed
+  dynamic "ingress" {
+    for_each = length(var.allowed_ssh_cidrs) > 0 ? [1] : []
+    content {
+      description = "SSH access"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = var.allowed_ssh_cidrs
+    }
+  }
+
+  # Allow all outbound traffic
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.cluster_name}-management"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security group rule for EKS cluster endpoint access
+resource "aws_security_group_rule" "cluster_management_access" {
+  count = length(local.management_cidrs) > 0 ? 1 : 0
+
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.management[0].id
+  security_group_id        = module.eks.cluster_security_group_id
+  description              = "Allow management access from whitelisted IPs"
+}
+
+# --------------------------------------------
 # EKS Add-ons
 # --------------------------------------------
 resource "aws_eks_addon" "core_dns" {

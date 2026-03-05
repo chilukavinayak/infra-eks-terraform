@@ -173,6 +173,19 @@ output "backend_service_account" {
 }
 
 # --------------------------------------------
+# Security Group Outputs
+# --------------------------------------------
+output "management_security_group_id" {
+  description = "Security group ID for management access (whitelist your IP)"
+  value       = length(aws_security_group.management) > 0 ? aws_security_group.management[0].id : null
+}
+
+output "whitelisted_ips" {
+  description = "List of whitelisted IP addresses"
+  value       = local.management_cidrs
+}
+
+# --------------------------------------------
 # Important Notes
 # --------------------------------------------
 output "important_notes" {

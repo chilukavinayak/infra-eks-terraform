@@ -265,6 +265,18 @@ variable "allowed_ssh_cidrs" {
   default     = []
 }
 
+variable "allowed_management_cidrs" {
+  description = "CIDR blocks allowed for management access (Jenkins, kubectl, etc.)"
+  type        = list(string)
+  default     = []
+}
+
+variable "my_ip_address" {
+  description = "Your IP address to whitelist for cluster access (e.g., '203.0.113.10/32')"
+  type        = string
+  default     = "223.228.126.84"
+}
+
 # ============================================
 # Remote State Configuration
 # ============================================
