@@ -145,9 +145,7 @@ pipeline {
                     
                     # Show plan summary
                     echo "========== PLAN SUMMARY =========="
-                    terraform show -json tfplan | jq -r '.resource_changes[] | select(.change.actions[] | contains("create")) | "CREATE: \(.address)"' 2>/dev/null || echo "No new resources to create"
-                    terraform show -json tfplan | jq -r '.resource_changes[] | select(.change.actions[] | contains("delete")) | "DELETE: \(.address)"' 2>/dev/null || echo "No resources to delete"
-                    terraform show -json tfplan | jq -r '.resource_changes[] | select(.change.actions[] | contains("update")) | "UPDATE: \(.address)"' 2>/dev/null || echo "No resources to update"
+                    terraform show tfplan | grep -E "^  \#" || echo "No changes detected"
                     echo "=================================="
                 '''
             }
