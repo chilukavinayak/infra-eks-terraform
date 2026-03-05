@@ -278,5 +278,17 @@ resource "helm_release" "velero" {
     value = "aws"
   }
 
+  # Disable the upgrade CRDs job that causes issues
+  # CRDs will be managed manually or during initial install
+  set {
+    name  = "upgradeCRDs"
+    value = "false"
+  }
+
+  set {
+    name  = "cleanUpCRDs"
+    value = "false"
+  }
+
   depends_on = [module.eks, aws_iam_role_policy_attachment.velero]
 }
