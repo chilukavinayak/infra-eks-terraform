@@ -252,6 +252,67 @@ resource "aws_iam_instance_profile" "jenkins" {
   tags = local.common_tags
 }
 
+# Jenkins IAM Policy for ECR and other CI/CD permissions
+resource "aws_iam_role_policy" "jenkins" {
+  name = "${local.cluster_name}-jenkins-policy"
+  role = aws_iam_role.jenkins.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ECRAccess"
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRRepositoryAccess"
+        Effect = "Allow"
+        Action = [
+          "ecr:CreateRepository",
+          "ecr:DescribeRepositories",
+          "ecr:ListRepositories"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "S3Access"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = var.enable_velero_backups ? [
+          aws_s3_bucket.velero_backups[0].arn,
+          "${aws_s3_bucket.velero_backups[0].arn}/*"
+        ] : ["*"]
+      },
+      {
+        Sid    = "KMSAccess"
+        Effect = "Allow"
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.eks.arn
+      }
+    ]
+  })
+}
+
 # --------------------------------------------
 # EKS Add-ons
 # --------------------------------------------
