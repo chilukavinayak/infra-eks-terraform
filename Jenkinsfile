@@ -56,10 +56,7 @@ pipeline {
         
         stage('Terraform Plan') {
             when {
-                anyOf {
-                    params.ACTION == 'plan'
-                    params.ACTION == 'apply'
-                }
+                expression { params.ACTION == 'plan' || params.ACTION == 'apply' }
             }
             steps {
                 sh '''
@@ -72,7 +69,7 @@ pipeline {
         
         stage('Approval') {
             when {
-                params.ACTION == 'apply'
+                expression { params.ACTION == 'apply' }
             }
             steps {
                 input message: "Approve Terraform apply for ${params.ENVIRONMENT}?", ok: 'Approve'
@@ -81,7 +78,7 @@ pipeline {
         
         stage('Terraform Apply') {
             when {
-                params.ACTION == 'apply'
+                expression { params.ACTION == 'apply' }
             }
             steps {
                 sh '''
@@ -93,7 +90,7 @@ pipeline {
         
         stage('Terraform Destroy') {
             when {
-                params.ACTION == 'destroy'
+                expression { params.ACTION == 'destroy' }
             }
             steps {
                 script {
