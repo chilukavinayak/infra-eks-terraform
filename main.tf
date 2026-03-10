@@ -97,19 +97,6 @@ module "eks" {
 
   # Access Entries (new way in v20.x)
   access_entries = {
-    # Current user (Vinayak) - Terraform operator
-    terraform_user = {
-      principal_arn = data.aws_caller_identity.current.arn
-      type          = "STANDARD"
-      policy_associations = {
-        admin = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            type = "cluster"
-          }
-        }
-      }
-    }
     # IAM role for admin access
     admin_role = {
       principal_arn = aws_iam_role.admin.arn
@@ -139,8 +126,8 @@ module "eks" {
       principal_arn = aws_iam_role.jenkins.arn
       type          = "STANDARD"
       policy_associations = {
-        edit = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
           access_scope = {
             type = "cluster"
           }
