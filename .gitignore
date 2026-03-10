@@ -5,6 +5,7 @@
 *.tfvars
 *.tfvars.json
 !example.tfvars
+!environments/*.tfvars
 override.tf
 override.tf.json
 *_override.tf
