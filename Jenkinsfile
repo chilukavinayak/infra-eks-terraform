@@ -7,6 +7,7 @@ pipeline {
         AWS_REGION = 'us-west-2'
         AWS_ACCOUNT_ID = credentials('aws-account-id')
         TF_IN_AUTOMATION = 'true'
+        TF_DIR = 'infra-eks-terraform'
     }
     
     options {
@@ -33,26 +34,26 @@ pipeline {
             steps {
                 checkout scm
                 sh 'git log -1'
+                sh 'ls -la'
+                sh 'ls -la ${TF_DIR}/environments/'
             }
         }
         
         stage('Terraform Init') {
             steps {
-                dir('infra-eks-terraform') {
-                    sh '''
-                        terraform init -backend-config="bucket=tresvita-terraform-state-${AWS_ACCOUNT_ID}" -backend-config="key=eks/${ENVIRONMENT}/terraform.tfstate" -backend-config="region=${AWS_REGION}" -backend-config="dynamodb_table=tresvita-terraform-locks-${ENVIRONMENT}"
-                    '''
-                }
+                sh '''
+                    cd ${TF_DIR}
+                    terraform init -backend-config="bucket=tresvita-terraform-state-${AWS_ACCOUNT_ID}" -backend-config="key=eks/${ENVIRONMENT}/terraform.tfstate" -backend-config="region=${AWS_REGION}" -backend-config="dynamodb_table=tresvita-terraform-locks-${ENVIRONMENT}"
+                '''
             }
         }
         
         stage('Select Workspace') {
             steps {
-                dir('infra-eks-terraform') {
-                    sh '''
-                        terraform workspace select ${ENVIRONMENT} || terraform workspace new ${ENVIRONMENT}
-                    '''
-                }
+                sh '''
+                    cd ${TF_DIR}
+                    terraform workspace select ${ENVIRONMENT} || terraform workspace new ${ENVIRONMENT}
+                '''
             }
         }
         
@@ -61,12 +62,11 @@ pipeline {
                 expression { params.ACTION == 'plan' || params.ACTION == 'apply' }
             }
             steps {
-                dir('infra-eks-terraform') {
-                    sh '''
-                        terraform plan -var-file="environments/${ENVIRONMENT}.tfvars" -out=tfplan -input=false
-                        terraform show tfplan
-                    '''
-                }
+                sh '''
+                    cd ${TF_DIR}
+                    terraform plan -var-file="environments/${ENVIRONMENT}.tfvars" -out=tfplan -input=false
+                    terraform show tfplan
+                '''
             }
         }
         
@@ -84,11 +84,10 @@ pipeline {
                 expression { params.ACTION == 'apply' }
             }
             steps {
-                dir('infra-eks-terraform') {
-                    sh '''
-                        terraform apply tfplan
-                    '''
-                }
+                sh '''
+                    cd ${TF_DIR}
+                    terraform apply tfplan
+                '''
             }
         }
         
@@ -100,12 +99,17 @@ pipeline {
                 script {
                     input message: "DESTROY all infrastructure in ${params.ENVIRONMENT}?", ok: 'Destroy'
                 }
-                dir('infra-eks-terraform') {
-                    sh '''
-                        terraform destroy -var-file="environments/${ENVIRONMENT}.tfvars" -auto-approve -input=false
-                    '''
-                }
+                sh '''
+                    cd ${TF_DIR}
+                    terraform destroy -var-file="environments/${ENVIRONMENT}.tfvars" -auto-approve -input=false
+                '''
             }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
         }
     }
 }
