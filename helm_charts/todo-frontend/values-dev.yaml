@@ -1,10 +1,9 @@
 # ============================================
 # Tresvita Todo Frontend - Development Values
-# Managed by Wissen Team
+# No custom domain - uses ALB DNS directly
 # ============================================
 
-# Development environment configuration
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: tresvita-todo-frontend
@@ -30,11 +29,10 @@ resources:
     memory: 128Mi
 
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 4
-  targetCPUUtilizationPercentage: 70
+  enabled: false
 
+# ALB Ingress without custom domain
+# Access via ALB DNS name directly
 ingress:
   enabled: true
   className: alb
@@ -45,15 +43,16 @@ ingress:
     alb.ingress.kubernetes.io/healthcheck-path: /health
     alb.ingress.kubernetes.io/tags: "Environment=dev,Project=tresvita-todo-app,ManagedBy=wissen-team"
   hosts:
-    - host: app-dev.tresvita.local
+    # Use wildcard - ALB will accept any host header
+    - host: "*"
       paths:
         - path: /
           pathType: Prefix
 
-# Development environment variables
+# Dev environment - point to backend service internally
 env:
   - name: REACT_APP_API_URL
-    value: "http://api-dev.tresvita.local/api"
+    value: "http://tresvita-todo-backend.backend.svc.cluster.local:8080/api"
   - name: NODE_ENV
     value: "development"
   - name: REACT_APP_APP_NAME
