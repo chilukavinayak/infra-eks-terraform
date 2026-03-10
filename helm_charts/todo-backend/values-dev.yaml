@@ -1,6 +1,6 @@
 # ============================================
 # Tresvita Todo Backend - Development Values
-# No custom domain - uses internal service
+# Minimal config for fast deployment
 # ============================================
 
 replicaCount: 1
@@ -12,30 +12,56 @@ image:
 
 fullnameOverride: "tresvita-todo-backend"
 
+# Use default service account
 serviceAccount:
-  create: true
-  name: "backend-sa"
+  create: false
+  name: "default"
 
-podAnnotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/port: "8080"
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
 
+# No ingress for dev
+ingress:
+  enabled: false
+
+# Minimal resources
 resources:
   limits:
-    cpu: 1000m
-    memory: 1Gi
+    cpu: 500m
+    memory: 512Mi
   requests:
-    cpu: 200m
-    memory: 256Mi
+    cpu: 100m
+    memory: 128Mi
 
 autoscaling:
   enabled: false
 
-# No ingress for backend in dev - frontend accesses via internal service
-ingress:
+# Disable secret for dev (uses H2 in-memory)
+secret:
   enabled: false
 
-# Development environment variables
+# Simplified probes
+readinessProbe:
+  httpGet:
+    path: /api/actuator/health
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+livenessProbe:
+  httpGet:
+    path: /api/actuator/health
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Dev environment
 env:
   - name: SPRING_PROFILES_ACTIVE
     value: "dev"
@@ -43,5 +69,3 @@ env:
     value: "8080"
   - name: JAVA_OPTS
     value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
-  - name: LOG_LEVEL
-    value: "DEBUG"

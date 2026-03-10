@@ -1,6 +1,6 @@
 # ============================================
 # Tresvita Todo Frontend - Development Values
-# Simple ClusterIP service - use port-forward to access
+# Minimal config for fast deployment
 # ============================================
 
 replicaCount: 1
@@ -12,9 +12,10 @@ image:
 
 fullnameOverride: "tresvita-todo-frontend"
 
+# Use default service account for speed
 serviceAccount:
-  create: true
-  name: "frontend-sa"
+  create: false
+  name: "default"
 
 service:
   type: ClusterIP
@@ -25,22 +26,44 @@ service:
 ingress:
   enabled: false
 
+# Minimal resources for dev
 resources:
   limits:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 200m
+    memory: 256Mi
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 50m
+    memory: 64Mi
 
 autoscaling:
   enabled: false
 
-# Dev environment - connect to backend internally
+# Disable configmap for dev (use default nginx config)
+configMap:
+  enabled: false
+
+# Simplified probes for faster startup
+readinessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Dev environment
 env:
   - name: REACT_APP_API_URL
     value: "http://tresvita-todo-backend.backend.svc.cluster.local:8080/api"
   - name: NODE_ENV
     value: "development"
-  - name: REACT_APP_APP_NAME
-    value: "Tresvita Todo (Dev)"
