@@ -2,18 +2,17 @@
 # Remote State Configuration
 # ============================================
 
-# Note: This is a template. After creating the initial resources,
-# uncomment and configure this for production use.
+# Note: S3 backend is configured via -backend-config flags in CI/CD
+# The backend is initialized with:
+#   terraform init \
+#     -backend-config="bucket=tresvita-todo-app-tfstate-<account-id>" \
+#     -backend-config="key=terraform.tfstate" \
+#     -backend-config="region=us-west-2" \
+#     -backend-config="dynamodb_table=tresvita-todo-app-tfstate-lock"
 
-# terraform {
-#   backend "s3" {
-#     bucket         = "todo-app-tfstate-<account-id>"
-#     key            = "eks/terraform.tfstate"
-#     region         = "us-west-2"
-#     encrypt        = true
-#     dynamodb_table = "todo-app-tfstate-lock"
-#   }
-# }
+terraform {
+  backend "s3" {}
+}
 
 # S3 Bucket for Terraform State
 resource "aws_s3_bucket" "terraform_state" {
