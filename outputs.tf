@@ -180,6 +180,11 @@ output "management_security_group_id" {
   value       = length(aws_security_group.management) > 0 ? aws_security_group.management[0].id : null
 }
 
+output "jenkins_security_group_id" {
+  description = "Security group ID for Jenkins EC2 instance (attach this to your Jenkins server)"
+  value       = length(aws_security_group.jenkins) > 0 ? aws_security_group.jenkins[0].id : null
+}
+
 output "whitelisted_ips" {
   description = "List of whitelisted IP addresses"
   value       = local.management_cidrs

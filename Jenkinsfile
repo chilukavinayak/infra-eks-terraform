@@ -38,17 +38,21 @@ pipeline {
         
         stage('Terraform Init') {
             steps {
-                sh '''
-                    terraform init -backend-config="bucket=tresvita-terraform-state-${AWS_ACCOUNT_ID}" -backend-config="key=eks/${ENVIRONMENT}/terraform.tfstate" -backend-config="region=${AWS_REGION}" -backend-config="dynamodb_table=tresvita-terraform-locks-${ENVIRONMENT}"
-                '''
+                dir('infra-eks-terraform') {
+                    sh '''
+                        terraform init -backend-config="bucket=tresvita-terraform-state-${AWS_ACCOUNT_ID}" -backend-config="key=eks/${ENVIRONMENT}/terraform.tfstate" -backend-config="region=${AWS_REGION}" -backend-config="dynamodb_table=tresvita-terraform-locks-${ENVIRONMENT}"
+                    '''
+                }
             }
         }
         
         stage('Select Workspace') {
             steps {
-                sh '''
-                    terraform workspace select ${ENVIRONMENT} || terraform workspace new ${ENVIRONMENT}
-                '''
+                dir('infra-eks-terraform') {
+                    sh '''
+                        terraform workspace select ${ENVIRONMENT} || terraform workspace new ${ENVIRONMENT}
+                    '''
+                }
             }
         }
         
@@ -57,10 +61,12 @@ pipeline {
                 expression { params.ACTION == 'plan' || params.ACTION == 'apply' }
             }
             steps {
-                sh '''
-                    terraform plan -var-file="environments/${ENVIRONMENT}.tfvars" -out=tfplan -input=false
-                    terraform show tfplan
-                '''
+                dir('infra-eks-terraform') {
+                    sh '''
+                        terraform plan -var-file="environments/${ENVIRONMENT}.tfvars" -out=tfplan -input=false
+                        terraform show tfplan
+                    '''
+                }
             }
         }
         
@@ -78,9 +84,11 @@ pipeline {
                 expression { params.ACTION == 'apply' }
             }
             steps {
-                sh '''
-                    terraform apply tfplan
-                '''
+                dir('infra-eks-terraform') {
+                    sh '''
+                        terraform apply tfplan
+                    '''
+                }
             }
         }
         
@@ -92,9 +100,11 @@ pipeline {
                 script {
                     input message: "DESTROY all infrastructure in ${params.ENVIRONMENT}?", ok: 'Destroy'
                 }
-                sh '''
-                    terraform destroy -var-file="environments/${ENVIRONMENT}.tfvars" -auto-approve -input=false
-                '''
+                dir('infra-eks-terraform') {
+                    sh '''
+                        terraform destroy -var-file="environments/${ENVIRONMENT}.tfvars" -auto-approve -input=false
+                    '''
+                }
             }
         }
     }

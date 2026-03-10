@@ -352,6 +352,15 @@ resource "aws_security_group" "management" {
     cidr_blocks = local.management_cidrs
   }
 
+  # Allow port 8080 access (Jenkins UI, kubectl port-forward)
+  ingress {
+    description = "Port 8080 access (Jenkins, port-forward)"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = local.management_cidrs
+  }
+
   # Allow SSH access if needed
   dynamic "ingress" {
     for_each = length(var.allowed_ssh_cidrs) > 0 ? [1] : []
@@ -393,6 +402,66 @@ resource "aws_security_group_rule" "cluster_management_access" {
   source_security_group_id = aws_security_group.management[0].id
   security_group_id        = module.eks.cluster_security_group_id
   description              = "Allow management access from whitelisted IPs"
+}
+
+# --------------------------------------------
+# Security Group for Jenkins EC2 Instance
+# This security group allows access to Jenkins UI
+# --------------------------------------------
+
+resource "aws_security_group" "jenkins" {
+  count = length(local.management_cidrs) > 0 ? 1 : 0
+
+  name_prefix = "${local.cluster_name}-jenkins-"
+  description = "Security group for Jenkins CI/CD server"
+  vpc_id      = module.vpc.vpc_id
+
+  # Allow Jenkins UI access (port 8080)
+  ingress {
+    description = "Jenkins Web UI"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = local.management_cidrs
+  }
+
+  # Allow SSH access
+  dynamic "ingress" {
+    for_each = length(var.allowed_ssh_cidrs) > 0 ? [1] : []
+    content {
+      description = "SSH access"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = var.allowed_ssh_cidrs
+    }
+  }
+
+  # Allow HTTP (for webhook)
+  ingress {
+    description = "HTTP for GitHub webhook"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Allow all outbound traffic
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.cluster_name}-jenkins"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # --------------------------------------------
