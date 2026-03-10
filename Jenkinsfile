@@ -7,7 +7,6 @@ pipeline {
         AWS_REGION = 'us-west-2'
         AWS_ACCOUNT_ID = credentials('aws-account-id')
         TF_IN_AUTOMATION = 'true'
-        TF_DIR = 'infra-eks-terraform'
     }
     
     options {
@@ -33,16 +32,29 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
-                sh 'git log -1'
-                sh 'ls -la'
-                sh 'ls -la ${TF_DIR}/environments/'
+                sh '''
+                    echo "=== Current Directory ==="
+                    pwd
+                    echo "=== Directory Contents ==="
+                    ls -la
+                    echo "=== Find environments folder ==="
+                    find . -name "environments" -type d 2>/dev/null || echo "Not found"
+                    echo "=== Find dev.tfvars ==="
+                    find . -name "dev.tfvars" 2>/dev/null || echo "Not found"
+                '''
             }
         }
         
         stage('Terraform Init') {
             steps {
                 sh '''
-                    cd ${TF_DIR}
+                    # Find the terraform directory
+                    TF_DIR=$(find . -name "main.tf" -path "*/infra-eks-terraform/*" | head -1 | xargs dirname)
+                    if [ -z "$TF_DIR" ]; then
+                        TF_DIR="infra-eks-terraform"
+                    fi
+                    echo "Using TF_DIR: $TF_DIR"
+                    cd "$TF_DIR"
                     terraform init -backend-config="bucket=tresvita-terraform-state-${AWS_ACCOUNT_ID}" -backend-config="key=eks/${ENVIRONMENT}/terraform.tfstate" -backend-config="region=${AWS_REGION}" -backend-config="dynamodb_table=tresvita-terraform-locks-${ENVIRONMENT}"
                 '''
             }
@@ -51,7 +63,11 @@ pipeline {
         stage('Select Workspace') {
             steps {
                 sh '''
-                    cd ${TF_DIR}
+                    TF_DIR=$(find . -name "main.tf" -path "*/infra-eks-terraform/*" | head -1 | xargs dirname)
+                    if [ -z "$TF_DIR" ]; then
+                        TF_DIR="infra-eks-terraform"
+                    fi
+                    cd "$TF_DIR"
                     terraform workspace select ${ENVIRONMENT} || terraform workspace new ${ENVIRONMENT}
                 '''
             }
@@ -63,7 +79,11 @@ pipeline {
             }
             steps {
                 sh '''
-                    cd ${TF_DIR}
+                    TF_DIR=$(find . -name "main.tf" -path "*/infra-eks-terraform/*" | head -1 | xargs dirname)
+                    if [ -z "$TF_DIR" ]; then
+                        TF_DIR="infra-eks-terraform"
+                    fi
+                    cd "$TF_DIR"
                     terraform plan -var-file="environments/${ENVIRONMENT}.tfvars" -out=tfplan -input=false
                     terraform show tfplan
                 '''
@@ -85,7 +105,11 @@ pipeline {
             }
             steps {
                 sh '''
-                    cd ${TF_DIR}
+                    TF_DIR=$(find . -name "main.tf" -path "*/infra-eks-terraform/*" | head -1 | xargs dirname)
+                    if [ -z "$TF_DIR" ]; then
+                        TF_DIR="infra-eks-terraform"
+                    fi
+                    cd "$TF_DIR"
                     terraform apply tfplan
                 '''
             }
@@ -100,7 +124,11 @@ pipeline {
                     input message: "DESTROY all infrastructure in ${params.ENVIRONMENT}?", ok: 'Destroy'
                 }
                 sh '''
-                    cd ${TF_DIR}
+                    TF_DIR=$(find . -name "main.tf" -path "*/infra-eks-terraform/*" | head -1 | xargs dirname)
+                    if [ -z "$TF_DIR" ]; then
+                        TF_DIR="infra-eks-terraform"
+                    fi
+                    cd "$TF_DIR"
                     terraform destroy -var-file="environments/${ENVIRONMENT}.tfvars" -auto-approve -input=false
                 '''
             }
