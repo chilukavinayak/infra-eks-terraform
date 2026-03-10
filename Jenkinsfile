@@ -67,7 +67,7 @@ pipeline {
                     ls -la
                     echo "=== Contents of environments ==="
                     ls -la environments/
-                    terraform init -backend-config="bucket=tresvita-terraform-state-${AWS_ACCOUNT_ID}" -backend-config="key=eks/${ENVIRONMENT}/terraform.tfstate" -backend-config="region=${AWS_REGION}" -backend-config="dynamodb_table=tresvita-terraform-locks-${ENVIRONMENT}"
+                    terraform init -backend-config="bucket=tresvita-todo-app-tfstate-${AWS_ACCOUNT_ID}" -backend-config="key=eks/${ENVIRONMENT}/terraform.tfstate" -backend-config="region=${AWS_REGION}" -backend-config="dynamodb_table=tresvita-todo-app-tfstate-lock"
                 '''
             }
         }
