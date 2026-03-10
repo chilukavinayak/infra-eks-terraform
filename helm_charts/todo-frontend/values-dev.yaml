@@ -1,6 +1,6 @@
 # ============================================
 # Tresvita Todo Frontend - Development Values
-# No custom domain - uses ALB DNS directly
+# Simple ClusterIP service - use port-forward to access
 # ============================================
 
 replicaCount: 1
@@ -16,9 +16,14 @@ serviceAccount:
   create: true
   name: "frontend-sa"
 
-podAnnotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/port: "80"
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+# No ingress for dev - use port-forward
+ingress:
+  enabled: false
 
 resources:
   limits:
@@ -31,25 +36,7 @@ resources:
 autoscaling:
   enabled: false
 
-# ALB Ingress without custom domain
-# Access via ALB DNS name directly
-ingress:
-  enabled: true
-  className: alb
-  annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
-    alb.ingress.kubernetes.io/healthcheck-path: /health
-    alb.ingress.kubernetes.io/tags: "Environment=dev,Project=tresvita-todo-app,ManagedBy=wissen-team"
-  hosts:
-    # Use wildcard - ALB will accept any host header
-    - host: "*"
-      paths:
-        - path: /
-          pathType: Prefix
-
-# Dev environment - point to backend service internally
+# Dev environment - connect to backend internally
 env:
   - name: REACT_APP_API_URL
     value: "http://tresvita-todo-backend.backend.svc.cluster.local:8080/api"
@@ -57,5 +44,3 @@ env:
     value: "development"
   - name: REACT_APP_APP_NAME
     value: "Tresvita Todo (Dev)"
-  - name: REACT_APP_VERSION
-    value: "1.0.0-dev"
