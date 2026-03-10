@@ -162,9 +162,9 @@ env:
 
 # Secrets
 secret:
-  enabled: true
+  enabled: false
   data:
-    db-credentials:
+    dbcredentials:
       host: ""
       port: "5432"
       database: "tresvita_todo_db"
